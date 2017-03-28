@@ -60,6 +60,7 @@ class AmplitudeHistogram(IPlugin):
             colors = _spike_colors(np.arange(len(clusters)))
             maxs = np.zeros(len(clusters))
             was_fit = np.zeros(len(clusters), dtype=bool)
+            percent_missing_ndtr = np.zeros(len(clusters), dtype=float)
             for i in range(len(clusters)):
                 #plot the amplitude histogram
                 coords = controller._get_amplitudes(clusters[i])
@@ -122,13 +123,27 @@ class AmplitudeHistogram(IPlugin):
                     # norm area calculated by fit parameters
                     norm_area_ndtr = ndtr((popt[1] - min_amplitude) /
                                           popt[2])
-                    percent_missing_ndtr = 100 * (1 - norm_area_ndtr)
+                    percent_missing_ndtr[i] = 100 * (1 - norm_area_ndtr)
 
                     logger.debug('Cluster %d is missing %.1f of spikes',
-                                 clusters[i], percent_missing_ndtr)
+                                 clusters[i], percent_missing_ndtr[i])
 
             if any(was_fit):
                 ax.set_xlim([0, maxs.max() * 1.3])
+                offset = 0
+                r = f.canvas.get_renderer()
+                for i in range(len(clusters)):
+                    if was_fit[i]:
+                        str = '{:.1f}%'.format(percent_missing_ndtr[i])
+                    else:
+                        str = 'NaN'
+                    t = ax.text(maxs.max() * .01 + offset, ax.get_ylim()[1],
+                                str,
+                                color=np.append(colors[i][:3], 1), fontsize=12,
+                                verticalalignment='top')
+                    ext = t.get_window_extent(r)
+                    offset = ext.transformed(ax.transData.inverted()).x1
+                    offset = offset + maxs.max() * .02
             xt = ax.get_xticks()
             ax.set_xticks((xt[0], xt[-1]))
             f.canvas.draw()
